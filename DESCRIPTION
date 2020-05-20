@@ -1,0 +1,15 @@
+Package: MCMCddpmbb
+Type: Package
+Title: Markov Chain Monte Carlo (MCMC) Dynamic Dirichlet Process Mixture Beta-Binomial (ddpmbb) Model Package
+Version: 1.0
+Date: 2020-05-19
+Author: Qiushi Yu
+Maintainer: Qiushi Yu <yuqiushi@umich.edu>
+Description: MCMCddpmbb package implements Dynamic Dirichlet Process Mixture model to identify voting coalitions with binary roll call votes across multiple periods. It also includes post-processing methods to analyze the posterior samples of DDPM model. 
+License: GPL-3
+Imports: Rcpp (>= 1.0.1),
+		 RcppArmadillo,
+		 reshape2,
+		 ggplot2
+LinkingTo: Rcpp, RcppArmadillo
+RoxygenNote: 7.1.0
