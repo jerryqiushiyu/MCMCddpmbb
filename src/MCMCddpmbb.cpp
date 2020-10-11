@@ -257,7 +257,7 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 	//change argument names to fit the function body
 	//change tau to tune_value
 	arma::Col<double> tune_value(tau.n_rows);
-	for(int i=0; i<tune_value.n_rows; ++i){
+	for(unsigned int i=0; i<tune_value.n_rows; ++i){
 		tune_value(i)=tau(i);
 	}
 	//change W to Wt
