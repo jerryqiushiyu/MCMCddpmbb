@@ -23,7 +23,6 @@ Maintainer: \packageMaintainer{MCMCddpmbb}
 \references{
 ~~ Literature or other references for background information ~~
 }
-~~ directory ~~
 \keyword{ package }
 \seealso{
 ~~ Optional links to other man pages, e.g. ~~
