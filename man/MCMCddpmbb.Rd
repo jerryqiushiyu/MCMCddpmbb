@@ -22,7 +22,10 @@ MCMCddpmbb(
   burnin = 0L,
   thin = 1L,
   verbose = 100L,
-  seed = 1234L
+  seed = 1234L,
+  fix_W = 1L,
+  r1 = 0.1,
+  s1 = 1
 )
 }
 \description{

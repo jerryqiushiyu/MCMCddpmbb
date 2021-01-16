@@ -4,7 +4,7 @@
 #' Dynamic Dirichlet Process Mixture Beta-Binomial Model to Indentify Voting Coalitions in Roll Call Vote Data of Multiple Periods.
 #'
 #' @export
-MCMCddpmbb <- function(X, dataStructure, lambda1_value, lambda0_value, alpha_start, tau, W = 1, m0 = 0, H0 = 1, r0 = 1, s0 = 1, V_start = 1, sams_iter = 3L, mcmc = 1000L, burnin = 0L, thin = 1L, verbose = 100L, seed = 1234L) {
-    .Call('_MCMCddpmbb_MCMCddpmbb', PACKAGE = 'MCMCddpmbb', X, dataStructure, lambda1_value, lambda0_value, alpha_start, tau, W, m0, H0, r0, s0, V_start, sams_iter, mcmc, burnin, thin, verbose, seed)
+MCMCddpmbb <- function(X, dataStructure, lambda1_value, lambda0_value, alpha_start, tau, W = 1, m0 = 0, H0 = 1, r0 = 1, s0 = 1, V_start = 1, sams_iter = 3L, mcmc = 1000L, burnin = 0L, thin = 1L, verbose = 100L, seed = 1234L, fix_W = 1L, tau_W = 0.05, r1 = 0.1, s1 = 1) {
+    .Call('_MCMCddpmbb_MCMCddpmbb', PACKAGE = 'MCMCddpmbb', X, dataStructure, lambda1_value, lambda0_value, alpha_start, tau, W, m0, H0, r0, s0, V_start, sams_iter, mcmc, burnin, thin, verbose, seed, fix_W, tau_W, r1, s1)
 }
 

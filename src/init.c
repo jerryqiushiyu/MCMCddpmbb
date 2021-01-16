@@ -8,10 +8,10 @@
 */
 
 /* .Call calls */
-extern SEXP _MCMCddpmbb_MCMCddpmbb(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP _MCMCddpmbb_MCMCddpmbb(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_MCMCddpmbb_MCMCddpmbb", (DL_FUNC) &_MCMCddpmbb_MCMCddpmbb, 18},
+    {"_MCMCddpmbb_MCMCddpmbb", (DL_FUNC) &_MCMCddpmbb_MCMCddpmbb, 22},
     {NULL, NULL, 0}
 };
 

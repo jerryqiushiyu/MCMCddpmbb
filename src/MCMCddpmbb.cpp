@@ -34,16 +34,7 @@ static void SampleNoReplace(const int k, int n, vector<int>& y, vector<int>& x) 
 	}
 }
 
-//static void SampleNoReplace(const int k, int n, int *y, int *x) {
-//	for (int i = 0; i < n; i++)
-//		x[i] = i;
-//	for (int i = 0; i < k; i++) {
-//		double u = R::runif(0, 1);//runif(1,0,1) has a NumericVecor output, so I need to index to get the double number out
-//		int j = static_cast<int>(n * u);
-//		y[i] = x[j];
-//		x[j] = x[--n];
-//	}
-//}
+
 
 
 // draws 1 element from a double array x with prob weights in array p
@@ -229,7 +220,7 @@ double alpha_logLik(const double& alpha, const int& n, const int& k){
 }
 
 //created on Jan 20, 2020
-//this is based on a new model than the previous one. I put a log normal prior directly on alpha.
+//This is based on a new model. I put a log normal prior directly on alpha.
 //Then log(\alpha) has a normal distribution in every period
 //I use dyanmic linear model across period to smooth it.  
 
@@ -252,7 +243,7 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 	double lambda1_value, double lambda0_value, arma::Col<double> alpha_start, 
 	arma::Col<double> tau, double W = 1, double m0 = 0, double H0 = 1, double r0 = 1, 
 	double s0 = 1, double V_start = 1, int sams_iter=3, int mcmc=1000, 
-	int burnin=0, int thin=1, int verbose = 100, int seed=1234) {
+	int burnin=0, int thin=1, int verbose = 100, int seed=1234, int fix_W = 1, double tau_W = 0.05, double r1 = 0.1, double s1 = 1) {
 	
 	//change argument names to fit the function body
 	//change tau to tune_value
@@ -260,10 +251,7 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 	for(unsigned int i=0; i<tune_value.n_rows; ++i){
 		tune_value(i)=tau(i);
 	}
-	//change W to Wt
-	double Wt=W;
-	//change V_start to Vt_start
-	double Vt_start=V_start;
+	
 	//change  H0 to C0
 	double C0=H0;
 	
@@ -311,28 +299,14 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 		alpha_log[t] = std::log(alpha[t]);
 	}
 
-	// b0 for each period. 
-	// prior for b0[t] \sim Gamma(r0,s0)
-	/* double b0[T];
-	for (int t = 0; t < T; ++t) {
-		b0[t] = b0_start(t);
-	}
-	double a0[T];
-	for (int t = 0; t < T; ++t) {
-		a0[t] = a0_start(t);
-	}
-	arma::Mat<double> b0_store(nsamp, T);
-	arma::Mat<double> a0_store(nsamp, T);
-	//z[t] is log(b0[t]), and b0[t] is the rate parameter.
-	double z[T];
-	for (int t = 0; t < T; ++t) {
-		z[t] = std::log(b0[t]);
-	} */
+	
 	//MH_accept monitors the acceptance of new z[t] for each Metropolis-Hastings step for each time period
 	int MH_accept[T];
 	for (int t = 0; t < T; ++t) {
 		MH_accept[t] = 0;
 	}
+	
+	
 	//tune parameter for Metroplis-Hastings step
 	double tune[T];
 	for (int t = 0; t < T; ++t) {
@@ -340,9 +314,9 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 	}
 
 	//the DLM mean parameter gamma[t], the length should be T
-	double theta[T];
+	double gamma[T];
 	for (int t = 0; t < T; ++t) {
-		theta[t] = 0;
+		gamma[t] = 0;
 	}
 	//The rest of the DLM paramters containers
 	double a[T];
@@ -365,20 +339,23 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 	}
 
 	// the DLM variance for the innovation equation
-	double Vt = Vt_start;
-	//store containers for Vt, theta
-	arma::Col<double> Vt_store_data(nsamp);
-	arma::mat theta_store_data(nsamp, T);
-	theta_store_data.fill(0.0);
-
+	double V = V_start;
+	//store containers for V, gamma
+	arma::Col<double> V_store_data(nsamp);
+	arma::mat gamma_store_data(nsamp, T);
+	gamma_store_data.fill(0.0);
+	
+	//store containers for W
+	arma::Col<double> W_store_data(nsamp);
+	
+	
+	//MH_accept_W monitors the acceptance of new W for each Metropolis-Hastings step for each time period
+	int MH_accept_W = 0;
+	
+	
 	double lambda1[T][max_J]; // pseudo counts of y=1 for beta base distribution
 	double lambda0[T][max_J]; // pseudo counts of y=0 for beta base distribution
-	// if (*lambda_start_row * *lambda_start_col != J){
-	//   cout << 
-	//     "incompatibility between R and C++ code for size of lambda.start" << 
-	//       endl;
-	//   exit(1);
-	// }
+	
 	// For now, I don't sample lambda
 	for (int t = 0; t < T; ++t) {
 		for (int j = 0; j < J[t]; ++j) {
@@ -396,69 +373,14 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 	// storage arrays
 	arma::Cube<int> c_store(nsamp, max_I,T);
 	c_store.fill(-100);
-	/*for (int i = 0; i < c_store_row; ++i) {
-		vector<int> holder;
-		for (int j = 0; j < c_store_col; ++j) {
-			holder.push_back(0);
-		}
-		c_store.push_back(holder);
-	}*/
-	// vector< vector<double> > lambda_store;
-	// for (int i=0; i<*lambda_store_row; ++i){
-	//   vector<double> holder;
-	//   for (int j=0; j<*lambda_store_col; ++j){
-	//     holder.push_back(0);
-	//   }
-	//   lambda_store.push_back(holder);
-	// }
-	/*vector< vector<double> > phi_store;
-	for (int i = 0; i < phi_store_row; ++i) {
-		vector<double> holder;
-		for (int j = 0; j < phi_store_col; ++j) {
-			holder.push_back(0);
-		}
-		phi_store.push_back(holder);
-	}*/
-	/*vector< vector<int> > phi_labels_store;
-	for (int i = 0; i < phi_labels_store_row; ++i) {
-		vector<int> holder;
-		for (int j = 0; j < phi_labels_store_col; ++j) {
-			holder.push_back(-999);
-		}
-		phi_labels_store.push_back(holder);
-	}*/
+	
 
 	arma::Mat<int> nclust_store_data(nsamp, T);
 	nclust_store_data.fill(0);
 
-	/*
-	cout << "*c_store_row = " << *c_store_row << "  *c_store_col = " <<
-	  *c_store_col << endl;
-	  int c_store[*c_store_row][*c_store_col];
-	//cout << "*nclust_store_row = " << *nclust_store_row <<
-	//  "  *nclust_store_col = " <<
-	// *nclust_store_col << endl;
-	//int nclust_store[*nclust_store_row][*nclust_store_col];
-	//cout << "*phi_store_row = " << *phi_store_row << "  *phi_store_col = " <<
-	//  *phi_store_col << endl;
-	//double phi_store[*phi_store_row][*phi_store_col];
-	//    cout << "*alpha_store_row = " << *alpha_store_row <<
-	// "  *alpha_store_col = " <<
-	// *alpha_store_col << endl;
-	//double alpha_store[*alpha_store_row][*alpha_store_col];
-	cout << "*lambda_store_row = " << *lambda_store_row <<
-	  "  *lambda_store_col = " <<
-		*lambda_store_col << endl;
-		double lambda_store[*lambda_store_row][*lambda_store_col];
-	*/
-
-
-	// initialize rng stream
-	// rng *stream = MCMCpack_get_rng(*lecuyer, seedarray, *lecuyerstream);
-
+	
 	
 
-	
 
 
 	// initial values for cluster variables and sufficient statistics
@@ -533,16 +455,7 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 	}
 	
 
-	// holds prob(y_kj = 1) specific to clusters
-	//arma::cube phi(max_J, max_I, T); //initialized with zero
-	//phi.fill(0.0);
-	/*for (int i = 0; i < (I + 1); ++i) {
-		vector<double> holder;
-		for (int j = 0; j < J; ++j) {
-			holder.push_back(0.0);
-		}
-		phi.push_back(holder);
-	}*/
+
 
 
 	// number of elements in each cluster 
@@ -1333,50 +1246,12 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 
 
 
-	  // sample phi given cluster indicators (has to be done immediately after
-	  //                                      cr sampling)
-	  // For the rest of the algorithm to work, I don't need to same phi for each cluster, 
-	  // because I only need to keep tabs on how many ones and zeros there on each item for each cluster in time t.
-	  // Essentially, phi's are always integrated out in the algorithm.
-		/*for (int t = 0; t < T; ++t) {
-			for (int kk = 0; kk < K[t]; ++kk) {
-				int k = cru[t][kk];
-				for (int j = 0; j < J[t]; ++j) {
-					phi(j,k,t) = Rcpp::rbeta(1, lambda1[t][j] + n_1[t][k][j],
-						lambda0[t][j] + n_0[t][k][j])[0];
-				}
-			}
-
-		}*/
-		
+	  
 
 		// sample alpha: alpha has a log normal distribution. log(alpha) has a normal distribution
 		// we use a MH random walk algorithm to sample alpha_t 
-		
-		
-		/* for (int t = 0; t < T; ++t) {
-			double eta = Rcpp::rbeta(1, alpha[t] + 1.0, static_cast<double>(I[t]))[0];
-			double pi_eta_odds = (a0[t] + K[t] - 1) / (I[t] * (b0[t] - std::log(eta)));
-			double pi_eta = pi_eta_odds / (pi_eta_odds + 1);
-			if (R::runif(0, 1) < pi_eta) {
-				alpha[t] = Rcpp::rgamma(1, a0[t] + K[t], b0[t] - std::log(eta))[0];
-				alpha_log[t] = std::log(alpha[t]);
-			}
-			else {
-				alpha[t] = Rcpp::rgamma(1, a0[t] + K[t] - 1, b0[t] - std::log(eta))[0];
-				alpha_log[t] = std::log(alpha[t]);
-			}
-		} */
-
-		// alpha_t \sim Gamma(shape=a0_t, rate=b0_t), so b0_t is on the numerator. Mike West has wrong terminology
-		// I transform b0_t. log(b0_t)=z_t 
-		// exp(z_t) enters the likelihood as the rate parameter in a gamma
-		// sample new  b0[t]. The prior of log(b0[t]): log(b0[t])=Z[t] \sim N(gamma0[t], V_t)
-		// Given alpha_t, a_t, the likelihood of b0[t]=exp(Z[t]) \sim gamma(shape=a_t+2, rate=alpha_t)
-		// posterior for b0 is the combination of the above two distributions
 		//Rcpp::rgamma is parameterized by shape and scale, so I use 1/rate=scale
-		// sample b0
-		//double alpha_sum = 0;
+		
 		for (int t = 0; t < T; ++t) {
 			double step = R::runif(-tune[t], tune[t]);
 			double new_alpha = alpha[t] + step;
@@ -1386,7 +1261,7 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 				new_alpha = alpha[t] + step;
 			}
 			// The likelihood for alpha_t \propto \alpha_t^{K[t]}\frac{\Gamma(alpha_t)}{\Gamma(alpha_t)+I[t]}
-			// The prior for alpha_t \propto \frac{1}{\alpha_t} \exp{\frac{(\ln alpha_t - theta_t)}{2 Vt_t}}
+			// The prior for alpha_t \propto \frac{1}{\alpha_t} \exp{\frac{(\ln alpha_t - gamma_t)}{2 V}}, which is a log-normal distribution.
 			// double alpha_logLik(const double& alpha, const int& n, const int& k){
 						// return k*std::log(alpha)+std::lgamma(alpha)-std::lgamma(alpha+n);
 					// }
@@ -1394,8 +1269,8 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 			// The Rcpp sugar functions are meant for vector type arguments like Rcpp::NumericVector. 
 			// For scalar arguments you can use the functions in the R namespace:
 			double ratio = alpha_logLik(new_alpha, I[t], K[t])-alpha_logLik(alpha[t], I[t], K[t])
-			+R::dlnorm(new_alpha, theta[t],std::sqrt(Vt),true)
-			-R::dlnorm(alpha[t], theta[t],std::sqrt(Vt),true);
+			+R::dlnorm(new_alpha, gamma[t],std::sqrt(V),true)
+			-R::dlnorm(alpha[t], gamma[t],std::sqrt(V),true);
 			//Rcpp::Rcout << "The MH ratio is " << std::exp(ratio) << std::endl;
 			if (R::runif(0, 1) < std::exp(ratio)) {
 				alpha[t] = new_alpha;
@@ -1403,57 +1278,52 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 				MH_accept[t]+=1;
 			}
 		}
-		// fill the exp(-z[t]) in to b0[t]
-		// for (int t = 0; t < T; ++t) {
-			// b0[t] = std::exp(z[t]);
-		// }
 		
 		
 		
-		//use DLM to smooth all theta[t]s
-		//alpha_log[t] \sim N(\theta[t], Vt)
-		//\theta[t] \sim N(\theta[t-1], Wt)
+		//use DLM to smooth all gamma[t]s
+		//alpha_log[t] \sim N(\gamma[t], V)
+		//\gamma[t] \sim N(\gamma[t-1], W)
         // known parameter values
-		/*double Ft = 1;
-		double Gt = 1;*/
+		
 		//## run the Kalman filter forward through time
 		a[0] = m0;
-		R[0] = C0 + Wt;
+		R[0] = C0 + W;
 		f[0] = a[0];
-		Q[0] = R[0] + Vt;
+		Q[0] = R[0] + V;
 		e[0] = alpha_log[0] - f[0];
 		A[0] = R[0] / Q[0];
 		m[0] = a[0] + A[0] * e[0];
 		C[0] = R[0] - A[0] * Q[0] * A[0];
 		for (int i = 1; i < T; ++i) { // C++index starts with 0
 			a[i] = m[i - 1];
-			R[i] = C[i - 1] + Wt;
+			R[i] = C[i - 1] + W;
 			f[i] = a[i];
-			Q[i] = R[i] + Vt;
+			Q[i] = R[i] + V;
 			e[i] = alpha_log[i] - f[i];
 			A[i] = R[i] / Q[i];
 			m[i] = a[i] + A[i] * e[i];
 			C[i] = R[i] - A[i] * Q[i] * A[i];
 		}
 
-		// sample the last theta, theta[T-1]
-		theta[T - 1] = R::rnorm(m[T - 1], std::sqrt(C[T - 1])); //C++ index starts with 0
+		// sample the last gamma, gamma[T-1]
+		gamma[T - 1] = R::rnorm(m[T - 1], std::sqrt(C[T - 1])); //C++ index starts with 0
 		
-	    //sample theta backwards through time
+	    //sample gamma backwards through time
 		double B = 0;
 		double h = 0;
 		double H = 0;
 		for (int i = T - 2; i >= 0; --i) { //C++ index starts with 0
 			B = C[i] / R[i + 1];
-			h = m[i] + B * (theta[i + 1] - a[i + 1]);
+			h = m[i] + B * (gamma[i + 1] - a[i + 1]);
 			H = C[i] - B * R[i + 1] * B;
-			theta[i] = R::rnorm(h, std::sqrt(H));
+			gamma[i] = R::rnorm(h, std::sqrt(H));
 		}
 
-       //sample new Vt (sigma2)
+       //sample new V (sigma2)
 		double residual[T];
 		for (int t = 0; t < T; ++t) {
-			residual[t] = alpha_log[t] - theta[t];
+			residual[t] = alpha_log[t] - gamma[t];
 		}
 		double sse = 0;
 		for (int t = 0; t < T; ++t) {
@@ -1461,77 +1331,62 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 		}
 		
 	   /* sigma2 < -rinvgamma(1, (alpha + T) / 2, (beta + sse) / 2), paramterized by shape and rate
-	    Vt < -sigma2*/
-		//Vt prior inverse gamma(r0/2,s0/2)
-		//Vt posterior is inverse gamma((r0 + T) / 2,  (s0 + sse)/2),(s0 + sse)/2 is rate
+	    V < -sigma2*/
+		//V prior inverse gamma(r0/2,s0/2)
+		//V posterior is inverse gamma((r0 + T) / 2,  (s0 + sse)/2),(s0 + sse)/2 is rate
 		// which is equivalent to 1 / Rcpp::rgamma(1, (r0 + T) / 2, 2 / (s0 + sse))[0]; I checked this in R
-		Vt = 1 / R::rgamma((r0 + T) / 2, 2 / (s0 + sse));
+		V = 1 / R::rgamma((r0 + T) / 2, 2 / (s0 + sse));
 		//}
+		
+		if(fix_W != 1){
+			
+			// sample W			
+			
+			double step_W = R::runif(-tau_W, tau_W);
+			double new_W =  W + step_W;
+			//new_W has to be positive
+			while(new_W<=0){
+				step_W = R::runif(-tau_W, tau_W);
+				new_W =  W + step_W;
+			}
+			// The likelihood for W \propto \sum_{t=1}^{t=T} \phi(gamma_{t}-gamma{t-1}; 0, W), where \phi(., 0, W) is the PDF of a normal distribution with mean 0 and variance W. 
+			// W \sim Gamma(shape = r1, rate=s1), so s1^r1 is on the numerator.
+			//Rcpp::rgamma is parameterized by shape and scale, so I use 1/rate=scale
+			
+			double W_logLik_old = 0;
+			double W_logLik_new = 0;
+			for(int t = 1; t < T; ++t){
+				
+				W_logLik_old += R::dnorm(gamma[t]-gamma[t-1],0,std::sqrt(W),true);
+				W_logLik_new += R::dnorm(gamma[t]-gamma[t-1],0,std::sqrt(new_W),true);
+			}
+			
+			// The Rcpp sugar functions are meant for vector type arguments like Rcpp::NumericVector. 
+			// For scalar arguments you can use the functions in the R namespace:
+			double W_ratio = W_logLik_new-W_logLik_old+R::dgamma(new_W, r1,1/s1,true)-R::dgamma(W, r1,1/s1,true);
+			//Rcpp::Rcout << "The MH ratio is " << std::exp(ratio) << std::endl;
+			if (R::runif(0, 1) < std::exp(W_ratio)) {
+				W = new_W;
+				MH_accept_W+=1;
+			}
+			
+		}
 		
 
 		if (iter >= burnin && ((iter % thin) == 0)) {
 			for (int t = 0; t < T; ++t) {
 				nclust_store_data(count, t) = K[t];
 				alpha_store_data(count, t) = alpha[t];
-				theta_store_data(count, t) = theta[t];
+				gamma_store_data(count, t) = gamma[t];
 				// b0_store(count,t) = b0[t];
 				
 				for (int i = 0; i < I[t]; ++i) {
 					c_store(count, i, t) = cr[t][i];
 				}
 			}
-			Vt_store_data(count)=Vt;
-			
-
-
-			
-			// for (int j=0; j<J; ++j){
-			//   lambda_store[count][j] = lambda1[j];
-			// }
-			// if (*max_nc_save >= K){ // we can store all the phis
-			//   for (int kk=0; kk<K; ++kk){
-			//     int k = cru[kk];
-			//     phi_labels_store[count][kk] = k;
-			//     for (int j=0; j<J; ++j){
-			//       phi_store[count][kk*J + j] = phi[k][j];
-			//     }
-			//   }	
-			// }
-			// else{ // can only take the phis from the largest *max_nc_save clusters
-			//   // put n_in_cluster into a vector
-			//   vector<int> n_in_clust_vec;
-			//   n_in_clust_vec.reserve(K);
-			//   vector<int> cru_vec;
-			//   cru_vec.reserve(K);
-			//   for (int kk=0; kk<K; ++kk){
-			//     n_in_clust_vec.push_back(n_in_cluster[cru[kk]]);
-			//     cru_vec.push_back(cru[kk]);
-			//   }
-			  // sort the new n_in_cluster vector
-			  // sort(n_in_clust_vec.begin(), n_in_clust_vec.end(), 
-			  //      greater<double>());
-			  // int nstored = 0;
-			  // while (nstored < *max_nc_save){
-			  //   // find cluster who has the largest current membership
-			  //   const int cvsize = cru_vec.size();
-			  //   for (int kk=0; kk<cvsize; ++kk){
-			  //     int k = cru_vec[kk];
-			  //     if (n_in_cluster[k] == n_in_clust_vec[0]){ // largest cluster
-			  //       phi_labels_store[count][nstored] = k;
-			  //       for (int j=0; j<J; ++j){
-			  //         phi_store[count][nstored*J +j] = phi[k][j];
-			  //       }
-			  //       ++nstored;
-			  //       vector<int>::iterator pos = n_in_clust_vec.begin();
-			  //       n_in_clust_vec.erase(pos);
-			  //       pos = cru_vec.begin()+kk;
-			  //       cru_vec.erase(pos);
-			  //       break;		  
-			  //     }
-			  //   }
-			  //}
-
-			//}
+			V_store_data(count)=V;
+			W_store_data(count)=W;
+	
 
 			++count;
 		}
@@ -1551,7 +1406,7 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 		accept_rate(t) = (double)MH_accept[t] / tot_iter;
 		
 	}
-
+	double accept_rate_W = (double)MH_accept_W/tot_iter;
 
 	///////Passing output to R
 	return Rcpp::List::create(Rcpp::Named("cluster_label_store") = c_store,
@@ -1561,10 +1416,12 @@ Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure,
 		Rcpp::Named("n_split") = n_split,
 		Rcpp::Named("n_merge") = n_merge,
 		Rcpp::Named("alpha_store_data") = alpha_store_data,
-		Rcpp::Named("gamma_store_data") = theta_store_data,
-		Rcpp::Named("V_store_data") = Vt_store_data,
-		Rcpp::Named("alpha_accept_rate")=accept_rate);
-		// Rcpp::Named("b0_store_data")=b0_store);
+		Rcpp::Named("gamma_store_data") = gamma_store_data,
+		Rcpp::Named("V_store_data") = V_store_data,
+		Rcpp::Named("W_store_data") = W_store_data,
+		Rcpp::Named("alpha_accept_rate")=accept_rate,
+		Rcpp::Named("W_accept_rate")=accept_rate_W);
+		
 }
 
 

@@ -7,8 +7,8 @@
 using namespace Rcpp;
 
 // MCMCddpmbb
-Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure, double lambda1_value, double lambda0_value, arma::Col<double> alpha_start, arma::Col<double> tau, double W, double m0, double H0, double r0, double s0, double V_start, int sams_iter, int mcmc, int burnin, int thin, int verbose, int seed);
-RcppExport SEXP _MCMCddpmbb_MCMCddpmbb(SEXP XSEXP, SEXP dataStructureSEXP, SEXP lambda1_valueSEXP, SEXP lambda0_valueSEXP, SEXP alpha_startSEXP, SEXP tauSEXP, SEXP WSEXP, SEXP m0SEXP, SEXP H0SEXP, SEXP r0SEXP, SEXP s0SEXP, SEXP V_startSEXP, SEXP sams_iterSEXP, SEXP mcmcSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP verboseSEXP, SEXP seedSEXP) {
+Rcpp::List MCMCddpmbb(arma::cube X, arma::Mat<int> dataStructure, double lambda1_value, double lambda0_value, arma::Col<double> alpha_start, arma::Col<double> tau, double W, double m0, double H0, double r0, double s0, double V_start, int sams_iter, int mcmc, int burnin, int thin, int verbose, int seed, int fix_W, double tau_W, double r1, double s1);
+RcppExport SEXP _MCMCddpmbb_MCMCddpmbb(SEXP XSEXP, SEXP dataStructureSEXP, SEXP lambda1_valueSEXP, SEXP lambda0_valueSEXP, SEXP alpha_startSEXP, SEXP tauSEXP, SEXP WSEXP, SEXP m0SEXP, SEXP H0SEXP, SEXP r0SEXP, SEXP s0SEXP, SEXP V_startSEXP, SEXP sams_iterSEXP, SEXP mcmcSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP verboseSEXP, SEXP seedSEXP, SEXP fix_WSEXP, SEXP tau_WSEXP, SEXP r1SEXP, SEXP s1SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -30,7 +30,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type thin(thinSEXP);
     Rcpp::traits::input_parameter< int >::type verbose(verboseSEXP);
     Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
-    rcpp_result_gen = Rcpp::wrap(MCMCddpmbb(X, dataStructure, lambda1_value, lambda0_value, alpha_start, tau, W, m0, H0, r0, s0, V_start, sams_iter, mcmc, burnin, thin, verbose, seed));
+    Rcpp::traits::input_parameter< int >::type fix_W(fix_WSEXP);
+    Rcpp::traits::input_parameter< double >::type tau_W(tau_WSEXP);
+    Rcpp::traits::input_parameter< double >::type r1(r1SEXP);
+    Rcpp::traits::input_parameter< double >::type s1(s1SEXP);
+    rcpp_result_gen = Rcpp::wrap(MCMCddpmbb(X, dataStructure, lambda1_value, lambda0_value, alpha_start, tau, W, m0, H0, r0, s0, V_start, sams_iter, mcmc, burnin, thin, verbose, seed, fix_W, tau_W, r1, s1));
     return rcpp_result_gen;
 END_RCPP
 }
